@@ -1,10 +1,11 @@
 {
   "name": "@hianime-tizenbrew/app",
   "appName": "HiAnime TV",
-  "version": "1.0.0",
-  "description": "HiAnime TV interface for Samsung Tizen TVs",
+  "version": "1.1.0",
+  "description": "TV-friendly HiAnime interface with real search, anime details and episode metadata.",
   "packageType": "app",
   "appPath": "app/index.html",
+  "serviceFile": "service.js",
   "keys": [
     "MediaPlayPause",
     "MediaPlay",
