@@ -1,0 +1,18 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>HiAnime TV</title><link rel="stylesheet" href="style.css"></head>
+<body>
+<header><div class="logo">h!anime <span>TV</span></div><div class="hint">↑ ↓ ← → Navigate • OK Select • Back</div></header>
+<main>
+<section id="home" class="screen active"><h1>HiAnime TV</h1><p>Remote-first prototype</p><div class="menu">
+<button class="focusable" data-action="search">🔎 Search anime</button><button class="focusable">🔥 Popular Anime</button><button class="focusable" data-action="anime">▶ Continue Watching</button>
+</div><h2>Popular</h2><div class="cards">
+<button class="card focusable" data-anime="One Piece"><b>One Piece</b><small>Adventure</small></button>
+<button class="card focusable" data-anime="Naruto"><b>Naruto</b><small>Action</small></button>
+<button class="card focusable" data-anime="Jujutsu Kaisen"><b>Jujutsu Kaisen</b><small>Action</small></button>
+<button class="card focusable" data-anime="Demon Slayer"><b>Demon Slayer</b><small>Fantasy</small></button>
+</div></section>
+<section id="search" class="screen"><h1>Search Anime</h1><input id="searchInput" class="focusable" type="text" placeholder="Type anime name…"><button id="searchButton" class="focusable" data-action="do-search">Search</button><div id="searchResults" class="cards"></div></section>
+<section id="anime" class="screen"><h1 id="animeTitle">Anime</h1><p>Choose an episode, then choose a server.</p><div id="episodeCards" class="cards"></div><button class="focusable" data-action="servers">Choose Server</button></section>
+<section id="servers" class="screen"><h1>Choose Server</h1><div class="menu"><button class="focusable" data-action="player">Server 1</button><button class="focusable" data-action="player">Server 2</button><button class="focusable" data-action="player">Server 3</button></div></section>
+<section id="player" class="screen"><h1>Player</h1><div class="playerBox"><div class="playIcon">▶</div><div><b id="playerTitle">Demo Player</b><p>Play/Pause • Rewind/Fast Forward</p></div></div><button class="focusable" data-action="servers">Change Server</button></section>
+</main><div id="toast"></div><script src="app.js"></script></body></html>
