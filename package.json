@@ -1,0 +1,16 @@
+{
+  "name": "@hianime-tizenbrew/app",
+  "appName": "HiAnime TV",
+  "version": "1.0.0",
+  "description": "HiAnime TV interface for Samsung Tizen TVs",
+  "packageType": "app",
+  "appPath": "app/index.html",
+  "keys": [
+    "MediaPlayPause",
+    "MediaPlay",
+    "MediaPause",
+    "MediaFastForward",
+    "MediaRewind"
+  ],
+  "license": "MIT"
+}
