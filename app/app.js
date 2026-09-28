@@ -86,7 +86,15 @@ function loadEpisodes(a){
   var box=document.getElementById("episodes");box.innerHTML='<div class="player-message">Loading '+currentLang.toUpperCase()+' episodes…</div>';
   status("Loading episodes…");
   fetchJson(ANIVEXA+"/episodes/anikoto/"+encodeURIComponent(a.id)).then(function(d){
-    var eps=normalizeEpisodes(d,currentLang);box.innerHTML="";
+    var eps=normalizeEpisodes(d,currentLang);
+    // Some Anivexa deployments can return the watch endpoint while the episode-list
+    // endpoint is temporarily empty. Fall back to the AniList episode count so the
+    // confirmed watch route can be tried directly.
+    if(!eps.length && a.episodes){
+      var total=Number(a.episodes)||0;
+      for(var n=1;n<=total;n++)eps.push({number:n,title:"Episode "+n,id:""});
+    }
+    box.innerHTML="";
     if(!eps.length){box.innerHTML='<div class="player-message">No '+currentLang.toUpperCase()+' episodes were returned for this title.</div>';status("No "+currentLang.toUpperCase()+" episodes");return}
     eps.forEach(function(ep){
       var b=document.createElement("button");b.className="ep focusable";b.textContent="Episode "+ep.number+(ep.title?" — "+ep.title:"");b.onclick=function(){playEpisode(a,ep)};box.appendChild(b)
