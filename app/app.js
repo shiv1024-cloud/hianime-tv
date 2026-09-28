@@ -47,10 +47,18 @@ function search(q){
   var query="query($search:String){Page(page:1,perPage:30){media(search:$search,type:ANIME,sort:[SEARCH_MATCH,POPULARITY_DESC]){id title{romaji english native userPreferred}coverImage{extraLarge large medium}episodes format status description}}}";
   anilist(query,{search:q}).then(function(d){cards(d.data&&d.data.Page?d.data.Page.media:[],"results");status("Ready")}).catch(function(e){status("Search error");document.getElementById("results").innerHTML='<div class="player-message">Search failed: '+esc(e.message)+"</div>"})
 }
-function loadHome(){
-  status("Loading…");
-  var query="query{Page(page:1,perPage:25){media(type:ANIME,sort:POPULARITY_DESC){id title{romaji english native userPreferred}coverImage{extraLarge large medium}episodes format status}}}";
-  anilist(query).then(function(d){cards(d.data&&d.data.Page?d.data.Page.media:[],"homeGrid");status("Ready")}).catch(function(){status("Home unavailable");document.getElementById("homeGrid").innerHTML='<div class="player-message">Could not load anime catalog.</div>'})
+function loadHome(mode){
+  mode=mode||"popular";
+  status("Loading "+mode+"…");
+  var sort=mode==="recent"?"UPDATED_AT_DESC":"POPULARITY_DESC";
+  var query="query($sort:MediaSort){Page(page:1,perPage:25){media(type:ANIME,sort:[$sort]){id title{romaji english native userPreferred}coverImage{extraLarge large medium}episodes format status updatedAt popularity}}}";
+  anilist(query,{sort:sort}).then(function(d){
+    cards(d.data&&d.data.Page?d.data.Page.media:[],"homeGrid");
+    status(mode==="recent"?"Recent":"Popular");
+  }).catch(function(){
+    status("Home unavailable");
+    document.getElementById("homeGrid").innerHTML='<div class="player-message">Could not load '+mode+' anime.</div>';
+  })
 }
 function renderDetails(a){
   document.getElementById("detailsBox").innerHTML='<div class="title">'+esc(title(a))+'</div><div class="desc">'+esc(a.description||"")+'</div><div class="row lang-row"><button id="subBtn" data-lang="sub" class="focusable primary">English SUB</button><button id="dubBtn" data-lang="dub" class="focusable">English DUB</button></div>';
@@ -188,7 +196,8 @@ document.addEventListener("click",function(e){
   var a=e.target.closest&&e.target.closest("[data-action]");if(!a)return;
   var x=a.getAttribute("data-action");
   if(x==="search")show("search");
-  if(x==="recent"||x==="popular")loadHome();
+  if(x==="recent")loadHome("recent");
+  if(x==="popular")loadHome("popular");
   if(x==="do-search"){var q=document.getElementById("query").value.trim();if(q)search(q)}
 });
 window.addEventListener("load",function(){show("home");loadHome()});
