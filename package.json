@@ -1,11 +1,10 @@
 {
   "name": "@hianime-tizenbrew/app",
-  "appName": "HiAnime TV",
-  "version": "1.1.0",
-  "description": "TV-friendly HiAnime interface with real search, anime details and episode metadata.",
+  "appName": "Miruro TV",
+  "version": "1.2.0",
+  "description": "Remote-friendly anime TV interface for Samsung TizenBrew using a configurable Miruro-compatible backend.",
   "packageType": "app",
   "appPath": "app/index.html",
-  "serviceFile": "service.js",
   "keys": [
     "MediaPlayPause",
     "MediaPlay",
