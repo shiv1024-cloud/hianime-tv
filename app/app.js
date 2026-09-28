@@ -1,6 +1,5 @@
 (function(){'use strict';
-var BACKEND=localStorage.getItem("miruroBackend")||"https://public-miruro-consumet-api.vercel.app";
-var USE_PROXY=true;
+var BACKEND="https://mitenime.org/api";
 var PROXY="https://corsproxy.io/?url=";
 var statusEl=document.getElementById("status"),screens=document.querySelectorAll(".screen"),currentAnime=null,currentScreen="home",previousScreen="home",focusedEl=null;
 
@@ -24,51 +23,133 @@ function show(id){
   if(screen)screen.classList.add("active");
   setTimeout(function(){focusFirst(id)},0);
 }
-function esc(s){return String(s||"").replace(/[&<>"]/g,function(c){return{"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]})}
-function api(path){var u=BACKEND.replace(/\/$/,"")+path;var target=USE_PROXY?PROXY+encodeURIComponent(u):u;return fetch(target,{headers:{"Accept":"application/json"}}).then(function(r){if(!r.ok)throw Error("HTTP "+r.status);return r.json()})}
-function id(a){return a.id||""}
-function title(a){var t=a.title;if(typeof t==="string")return t;return t&&(t.english||t.romaji||t.userPreferred||t.native)||a.name||"Unknown"}
-function image(a){return a.image||a.cover||a.poster||a.thumbnail||(a.coverImage&&(a.coverImage.extraLarge||a.coverImage.large||a.coverImage.medium))}
-function list(d){return Array.isArray(d)?d:(d.results||d.data||d.animes||d.items||[])}
+function esc(s){return String(s==null?"":s).replace(/[&<>"]/g,function(c){return{"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]})}
+function first(o,keys,def){
+  for(var i=0;i<keys.length;i++){var k=keys[i];if(o&&o[k]!=null&&o[k]!=="")return o[k]}
+  return def;
+}
+function api(path){
+  var u=BACKEND.replace(/\/$/,"")+path;
+  return fetch(u,{headers:{"Accept":"application/json"}}).then(function(r){
+    if(!r.ok)throw Error("HTTP "+r.status);
+    return r.json();
+  }).catch(function(){
+    return fetch(PROXY+encodeURIComponent(u),{headers:{"Accept":"application/json"}}).then(function(r){
+      if(!r.ok)throw Error("HTTP "+r.status);
+      return r.json();
+    });
+  });
+}
+function payload(d){return d&&d.data!=null?d.data:d}
+function title(a){
+  var t=first(a,["title","name"],"Unknown");
+  if(typeof t==="string")return t;
+  return first(t,["english","romaji","userPreferred","native"],"Unknown");
+}
+function image(a){return first(a,["thumbnail","image","cover","poster","banner"],"")}
+function slug(a){return first(a,["slug","series_slug","episode_slug"],"")}
+function id(a){return first(a,["id","episode_id","series_id"],"")}
+function list(d){
+  var p=payload(d);
+  if(Array.isArray(p))return p;
+  return (p&&(p.results||p.animes||p.items||p.episodes||p.series))||[];
+}
 function cards(items,target){
   var el=document.getElementById(target);el.innerHTML="";
   if(!items.length){el.innerHTML='<div class="player-message">No results found.</div>';return}
   items.slice(0,30).forEach(function(a){
     var b=document.createElement("button");
     b.className="card focusable";
-    b.innerHTML='<img src="'+esc(image(a)||"https://via.placeholder.com/300x420?text=Anime")+'"><div class="name">'+esc(title(a))+'</div><div class="meta">'+esc((a.releaseDate||"")+" "+(a.subOrDub||""))+"</div>";
+    b.innerHTML='<img src="'+esc(image(a)||"https://via.placeholder.com/300x420?text=Anime")+'"><div class="name">'+esc(title(a))+'</div><div class="meta">'+esc(first(a,["type","status","released_at","releaseDate"],""))+'</div>';
     b.onclick=function(){openAnime(a)};
-    el.appendChild(b)
+    el.appendChild(b);
   });
   if(document.getElementById(currentScreen)===document.getElementById(target).parentElement)focusFirst(currentScreen);
 }
-function search(q){status("Searching…");api("/anime/gogoanime/"+encodeURIComponent(q)+"?page=1").then(function(d){cards(list(d),"results");status("Ready")}).catch(function(e){status("Search error");document.getElementById("results").innerHTML='<div class="player-message">Search failed: '+esc(e.message)+"</div>"})}
+function search(q){
+  status("Searching…");
+  api("/search?q="+encodeURIComponent(q)).then(function(d){
+    cards(list(d),"results");status("Ready");
+  }).catch(function(e){
+    status("Search error");
+    document.getElementById("results").innerHTML='<div class="player-message">Search failed: '+esc(e.message)+"</div>";
+  });
+}
 function openAnime(a){
   currentAnime=a;show("details");
+  var s=slug(a);
   document.getElementById("detailsBox").innerHTML='<div class="title">'+esc(title(a))+'</div><div class="desc">Loading information…</div>';
   document.getElementById("episodes").innerHTML='<div class="player-message">Loading episodes…</div>';
-  api("/anime/gogoanime/info/"+encodeURIComponent(id(a))).then(function(d){
-    currentAnime=d;
-    document.getElementById("detailsBox").innerHTML='<div class="title">'+esc(title(d))+'</div><div class="desc">'+esc(d.description||d.synopsis||"")+"</div>";
-    var eps=d.episodes||d.episodeList||[],box=document.getElementById("episodes");box.innerHTML="";
+  if(!s){document.getElementById("episodes").innerHTML='<div class="player-message">This result has no series slug.</div>';return}
+  api("/series/"+encodeURIComponent(s)).then(function(d){
+    var x=payload(d);currentAnime=x||a;
+    document.getElementById("detailsBox").innerHTML='<div class="title">'+esc(title(x||a))+'</div><div class="desc">'+esc(first(x||a,["synopsis","description"],""))+"</div>";
+    return api("/series/"+encodeURIComponent(s)+"/episodes?page=1&per_page=100");
+  }).then(function(d){
+    var eps=list(d),box=document.getElementById("episodes");box.innerHTML="";
     eps.forEach(function(ep,i){
-      var b=document.createElement("button");b.className="ep focusable";b.textContent="Episode "+(ep.number||ep.episodeNumber||i+1);b.onclick=function(){playEpisode(ep)};box.appendChild(b)
+      var b=document.createElement("button");b.className="ep focusable";
+      b.textContent="Episode "+first(ep,["number","episode_number","episodeNumber"],i+1);
+      b.onclick=function(){playEpisode(ep)};
+      box.appendChild(b);
     });
     if(!eps.length)box.innerHTML='<div class="player-message">No episodes returned.</div>';
-    setTimeout(function(){focusFirst("details")},0)
-  }).catch(function(e){document.getElementById("episodes").innerHTML='<div class="player-message">Anime info failed: '+esc(e.message)+"</div>"})
+    setTimeout(function(){focusFirst("details")},0);
+  }).catch(function(e){
+    document.getElementById("episodes").innerHTML='<div class="player-message">Anime info failed: '+esc(e.message)+"</div>";
+  });
+}
+function findPlayable(o,depth){
+  if(depth>6||o==null)return null;
+  if(typeof o==="string"){
+    if(/^https?:\/\//i.test(o) && (o.indexOf(".m3u8")>=0||o.indexOf(".mp4")>=0||o.indexOf(".webm")>=0||o.indexOf("stream")>=0||o.indexOf("video")>=0))return o;
+    return null;
+  }
+  if(Array.isArray(o)){
+    for(var i=0;i<o.length;i++){var r=findPlayable(o[i],depth+1);if(r)return r}
+    return null;
+  }
+  if(typeof o==="object"){
+    var keys=["url","file","src","stream_url","streamUrl","play_url","playUrl","hls","m3u8","video_url","videoUrl"];
+    for(var j=0;j<keys.length;j++){var v=o[keys[j]];if(typeof v==="string"&&/^https?:\/\//i.test(v))return v}
+    for(var k in o){if(Object.prototype.hasOwnProperty.call(o,k)){var z=findPlayable(o[k],depth+1);if(z)return z}}
+  }
+  return null;
 }
 function playEpisode(ep){
   show("player");
-  var m=document.getElementById("playerMessage"),v=document.getElementById("video");m.style.display="block";v.style.display="none";m.textContent="Loading episode…";
-  var eid=ep.id||ep.episodeId;if(!eid){m.textContent="This episode has no usable ID.";return}
-  api("/anime/gogoanime/watch/"+encodeURIComponent(eid)).then(function(d){
-    var s=d.sources&&d.sources[0];if(!s){m.textContent="The backend did not return a playable source.";return}
-    var u=s.url||s.file;if(!u){m.textContent="No playable URL returned.";return}
-    v.src=u;v.style.display="block";m.style.display="none";try{v.play()}catch(e){}
-  }).catch(function(e){m.textContent="Playback request failed: "+e.message})
+  var m=document.getElementById("playerMessage"),v=document.getElementById("video");
+  m.style.display="block";v.style.display="none";m.textContent="Loading episode…";
+  var s=slug(ep);
+  if(!s){
+    var apiUrl=first(ep,["api_url","url"],"");
+    if(apiUrl){s=apiUrl.split("/").pop()}
+  }
+  if(!s){m.textContent="This episode has no usable slug.";return}
+  api("/episodes/"+encodeURIComponent(s)).then(function(d){
+    var u=findPlayable(d,0);
+    if(!u){m.textContent="Episode data loaded, but no direct playable stream was returned.";return}
+    v.src=u;v.style.display="block";m.style.display="none";
+    v.onerror=function(){m.style.display="block";m.textContent="The TV player could not play this stream.";v.style.display="none"};
+    try{v.play()}catch(e){}
+  }).catch(function(e){m.textContent="Playback request failed: "+esc(e.message)});
 }
-function loadHome(){status("Loading…");api("/anime/gogoanime/recent-episodes?page=1").then(function(d){cards(list(d),"homeGrid");status("Ready")}).catch(function(e){status("Backend unavailable");document.getElementById("homeGrid").innerHTML='<div class="player-message">Could not reach the configured backend. Search can still be tested from the Search screen.</div>'})}
+function loadHome(){
+  status("Loading…");
+  api("/home").then(function(d){
+    var p=payload(d),items=[];
+    if(Array.isArray(p))items=p;
+    else{
+      var groups=["recommendations","recommended","popular","popular_series","series_popular","series","latest","latest_series"];
+      for(var i=0;i<groups.length;i++){if(Array.isArray(p&&p[groups[i]])){items=items.concat(p[groups[i]])}}
+      if(!items.length)items=list(d);
+    }
+    cards(items,"homeGrid");status("Ready");
+  }).catch(function(){
+    status("Backend unavailable");
+    document.getElementById("homeGrid").innerHTML='<div class="player-message">Could not reach MiteNime API.</div>';
+  });
+}
 function focusables(){
   return Array.prototype.slice.call(document.querySelectorAll("#"+currentScreen+" .focusable")).filter(function(el){return el.offsetParent!==null&&!el.disabled})
 }
@@ -94,16 +175,8 @@ document.addEventListener("keydown",function(e){
   var ok=k===13||k===32||key==="Enter"||key===" ";
   var back=k===10009||k===461||key==="Backspace";
   if(left||up||right||down){e.preventDefault();moveFocus(left?-1:right?1:0,up?-1:down?1:0);return}
-  if(ok){
-    var el=document.activeElement;
-    if(el&&el.classList.contains("focusable")){e.preventDefault();el.click()}
-    return
-  }
-  if(back){
-    e.preventDefault();
-    if(currentScreen!=="home")show(currentScreen==="player"?"details":"home");
-    return
-  }
+  if(ok){var el=document.activeElement;if(el&&el.classList.contains("focusable")){e.preventDefault();el.click()}return}
+  if(back){e.preventDefault();if(currentScreen!=="home")show(currentScreen==="player"?"details":"home");return}
   if(k===415){var v=document.getElementById("video");if(v){e.preventDefault();if(v.paused)v.play();else v.pause()}}
   if(k===412){var v=document.getElementById("video");if(v){e.preventDefault();v.currentTime=Math.max(0,v.currentTime-10)}}
   if(k===417){var v=document.getElementById("video");if(v){e.preventDefault();v.currentTime+=10}}
@@ -114,7 +187,7 @@ document.addEventListener("click",function(e){
   var x=a.getAttribute("data-action");
   if(x==="search")show("search");
   if(x==="recent")loadHome();
-  if(x==="popular"){status("Loading…");api("/anime/gogoanime/top-airing?page=1").then(function(d){cards(list(d),"homeGrid");status("Ready")}).catch(function(){status("Popular unavailable")})}
+  if(x==="popular")loadHome();
   if(x==="do-search"){var q=document.getElementById("query").value.trim();if(q)search(q)}
 });
 window.addEventListener("load",function(){show("home");loadHome()});
