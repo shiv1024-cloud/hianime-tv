@@ -140,9 +140,39 @@ function moveFocus(dx,dy){
   var els=focusables();if(!els.length)return;
   var cur=document.activeElement;if(!cur||els.indexOf(cur)<0)cur=focusedEl;
   if(!cur||els.indexOf(cur)<0){focusEl(els[0]);return}
-  var r=cur.getBoundingClientRect(),cx=r.left+r.width/2,cy=r.top+r.height/2,best=null,bestScore=Infinity;
-  els.forEach(function(el){if(el===cur)return;var q=el.getBoundingClientRect(),ex=q.left+q.width/2,ey=q.top+q.height/2,tx=ex-cx,ty=ey-cy,primary=dx?tx*dx:ty*dy,secondary=dx?Math.abs(ty):Math.abs(tx);if(primary<=4)return;var score=primary*100+secondary*3;if(score<bestScore){bestScore=score;best=el}});
-  if(best)focusEl(best)
+
+  var r=cur.getBoundingClientRect();
+  var cx=r.left+r.width/2,cy=r.top+r.height/2;
+  var candidates=[];
+
+  els.forEach(function(el){
+    if(el===cur)return;
+    var q=el.getBoundingClientRect();
+    var ex=q.left+q.width/2,ey=q.top+q.height/2;
+    var tx=ex-cx,ty=ey-cy;
+    var primary=dx?tx*dx:ty*dy;
+    if(primary<=4)return;
+
+    // Horizontal navigation must stay in the same visual row.
+    // This prevents RIGHT from jumping from a card grid to the
+    // Recent/Popular buttons above when the current row ends.
+    if(dx){
+      var verticalOverlap=(q.top<r.bottom && q.bottom>r.top);
+      if(!verticalOverlap)return;
+      var secondary=Math.abs(ey-cy);
+      candidates.push({el:el,score:primary*100+secondary*3});
+      return;
+    }
+
+    // Vertical navigation prefers elements whose columns overlap.
+    var horizontalOverlap=(q.left<r.right && q.right>r.left);
+    if(!horizontalOverlap)return;
+    var secondary=Math.abs(ex-cx);
+    candidates.push({el:el,score:primary*100+secondary*3});
+  });
+
+  candidates.sort(function(a,b){return a.score-b.score});
+  if(candidates.length)focusEl(candidates[0].el);
 }
 document.addEventListener("keydown",function(e){
   var k=e.keyCode||e.which,key=e.key,left=k===37||key==="ArrowLeft",up=k===38||key==="ArrowUp",right=k===39||key==="ArrowRight",down=k===40||key==="ArrowDown",ok=k===13||k===32||key==="Enter"||key===" ",back=k===10009||k===461||key==="Backspace";
