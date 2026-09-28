@@ -14,8 +14,10 @@ function focusEl(el){
   try{el.scrollIntoView({block:"nearest",inline:"nearest"})}catch(e){}
 }
 function focusFirst(id){var el=document.querySelector("#"+id+" .focusable");if(el)focusEl(el);else focusedEl=null}
+function stopPlayback(){var v=document.getElementById("video"),frame=document.getElementById("playerFrame");if(v){try{v.pause()}catch(e){}v.removeAttribute("src");v.load();v.style.display="none"}if(frame){frame.src="about:blank";frame.style.display="none"}}
 function show(id){
   if(id!==currentScreen){previousScreen=currentScreen;currentScreen=id}
+  if(id!=="player")stopPlayback();
   for(var i=0;i<screens.length;i++)screens[i].classList.remove("active");
   var screen=document.getElementById(id);if(screen)screen.classList.add("active");
   setTimeout(function(){focusFirst(id)},0)
@@ -186,7 +188,7 @@ document.addEventListener("keydown",function(e){
   var k=e.keyCode||e.which,key=e.key,left=k===37||key==="ArrowLeft",up=k===38||key==="ArrowUp",right=k===39||key==="ArrowRight",down=k===40||key==="ArrowDown",ok=k===13||k===32||key==="Enter"||key===" ",back=k===10009||k===461||key==="Backspace";
   if(left||up||right||down){e.preventDefault();moveFocus(left?-1:right?1:0,up?-1:down?1:0);return}
   if(ok){var el=document.activeElement;if(el&&el.classList.contains("focusable")){e.preventDefault();el.click()}return}
-  if(back){e.preventDefault();if(currentScreen!=="home")show(currentScreen==="player"?"details":"home");return}
+  if(back){e.preventDefault();if(currentScreen==="player"){stopPlayback();show("details");return}if(currentScreen==="details"){show("home");return}if(currentScreen!=="home"){show("home");return}}
   if(k===415){var v=document.getElementById("video");if(v){e.preventDefault();if(v.paused)v.play();else v.pause()}}
   if(k===412){var v=document.getElementById("video");if(v){e.preventDefault();v.currentTime=Math.max(0,v.currentTime-10)}}
   if(k===417){var v=document.getElementById("video");if(v){e.preventDefault();v.currentTime+=10}}
@@ -199,6 +201,8 @@ document.addEventListener("click",function(e){
   if(x==="recent")loadHome("recent");
   if(x==="popular")loadHome("popular");
   if(x==="do-search"){var q=document.getElementById("query").value.trim();if(q)search(q)}
+  if(x==="fullscreen"){var v=document.getElementById("video"),f=document.getElementById("playerFrame");var el=(v&&v.style.display!=="none")?v:f;if(el&&el.requestFullscreen){el.requestFullscreen()}else if(el&&el.webkitRequestFullscreen){el.webkitRequestFullscreen()}}
+  if(x==="exit-player"){stopPlayback();show("details")}
 });
 window.addEventListener("load",function(){show("home");loadHome()});
 })();
