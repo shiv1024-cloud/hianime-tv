@@ -1,8 +1,8 @@
 {
   "name": "@hianime-tizenbrew/app",
   "appName": "Miruro TV",
-  "version": "1.3.0",
-  "description": "Remote-friendly anime TV interface for Samsung TizenBrew using the MiteNime public API.",
+  "version": "1.4.0",
+  "description": "Remote-friendly anime TV interface for Samsung TizenBrew using the Anivexa AniKoto provider with SUB/DUB support.",
   "packageType": "app",
   "appPath": "app/index.html",
   "keys": [
