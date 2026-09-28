@@ -124,26 +124,58 @@ function findLangBlock(d,lang){
 function playEpisode(a,ep){
   show("player");
   var m=document.getElementById("playerMessage"),v=document.getElementById("video"),frame=document.getElementById("playerFrame");
-  m.style.display="block";v.style.display="none";frame.style.display="none";m.textContent="Loading "+currentLang.toUpperCase()+" stream…";
+  var fs=document.getElementById("fullscreenBtn");
+  m.style.display="block";v.style.display="none";frame.style.display="none";
+  if(fs){fs.style.display="block";fs.disabled=true}
+  m.textContent="Loading "+currentLang.toUpperCase()+" stream…";
+
   var watchId="anikoto-"+ep.number;
   fetchJson(ANIVEXA+"/watch/anikoto/"+encodeURIComponent(a.id)+"/"+currentLang+"/"+watchId).then(function(d){
     var block=findLangBlock(d,currentLang),streams=block&&block.streams||[];
     if(!streams.length){m.textContent="No "+currentLang.toUpperCase()+" stream was returned.";return}
-    var u=first(streams[0],["url","file","src"],"");if(!u){m.textContent="Stream URL missing.";return}
-    var isDirect=/\.(m3u8|mp4|webm)(\?|$)/i.test(u);
+
+    // Prefer a real media URL if the provider exposes one. Embed URLs are kept as a
+    // fallback because the current public deployment may return embed-only streams.
+    var direct=null;
+    for(var si=0;si<streams.length;si++){
+      var candidate=first(streams[si],["url","file","src"],"");
+      if(candidate&&/\.(m3u8|mp4|webm)(\?|$)/i.test(candidate)){direct={url:candidate,stream:streams[si]};break}
+    }
+
     document.getElementById("playerTitle").textContent=title(a)+" — "+currentLang.toUpperCase()+" E"+ep.number;
-    if(isDirect){
-      v.src=u;v.style.display="block";m.style.display="none";
+
+    if(direct){
+      v.src=direct.url;v.style.display="block";frame.style.display="none";m.style.display="none";
       try{
         var subs=block.subtitles||[];
-        for(var i=v.querySelectorAll("track").length-1;i>=0;i--)v.removeChild(v.querySelectorAll("track")[i]);
-        subs.forEach(function(t){var tr=document.createElement("track");tr.kind="captions";tr.label=t.label||"English";tr.srclang=t.language||"en";tr.src=t.file||"";if(t.default)tr.default=true;v.appendChild(tr)});
-        v.play()
+        var tracks=v.querySelectorAll("track");
+        for(var ti=tracks.length-1;ti>=0;ti--)v.removeChild(tracks[ti]);
+        subs.forEach(function(t){
+          // Only attach actual VTT files. Never navigate the TV browser to a subtitle URL.
+          if(!t.file||!/\.vtt(\?|$)/i.test(t.file))return;
+          var tr=document.createElement("track");
+          tr.kind="captions";tr.label=t.label||"English";tr.srclang=t.language||"en";tr.src=t.file;
+          if(t.default)tr.default=true;v.appendChild(tr);
+        });
+        v.play().catch(function(){});
       }catch(e){}
-    }else{
-      frame.src=u;frame.style.display="block";m.style.display="none";
+      if(fs){fs.disabled=false;fs.style.display="block"}
+      focusEl(fs||v);
+      return;
     }
-  }).catch(function(e){m.textContent="Playback request failed: "+esc(e.message)})
+
+    // Embed fallback: put the fullscreen control before the iframe and make it a
+    // TV-sized cinema player. The iframe itself may consume remote keys, so BACK is
+    // also handled by the player overlay whenever the browser exposes the event.
+    var embed=first(streams[0],["url","file","src"],"");
+    if(!embed){m.textContent="Stream URL missing.";return}
+    frame.src="about:blank";
+    setTimeout(function(){
+      frame.src=embed;
+      frame.style.display="block";m.style.display="none";
+      if(fs){fs.disabled=false;fs.style.display="block";focusEl(fs)}
+    },50);
+  }).catch(function(e){m.textContent="Playback request failed: "+esc(e.message);if(fs)fs.disabled=false})
 }
 function focusables(){return Array.prototype.slice.call(document.querySelectorAll("#"+currentScreen+" .focusable")).filter(function(el){return el.offsetParent!==null&&!el.disabled})}
 function moveFocus(dx,dy){
